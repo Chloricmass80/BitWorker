@@ -1,0 +1,6 @@
+*.env
+config/*
+!config/example.env
+
+todo.md
+.vscode

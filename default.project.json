@@ -1,0 +1,13 @@
+{
+  "name": "BitWorker",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className" : "ReplicatedStorage",
+      "BitWorker": {
+        "$path": "src"
+      }
+    }
+  }
+}
