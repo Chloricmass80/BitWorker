@@ -1,10 +1,10 @@
+local Players = game:GetService("Players")
 local BitWorkerModule = script.Parent.Parent
 
 local TLV = require(BitWorkerModule.TLV)
 local Utils = require(BitWorkerModule.UtilityFuncs)
 local ErrMessages = require(BitWorkerModule.ErrorMessages)
 local Settings = require(BitWorkerModule.Settings)
---local BitWorker = require(BitWorkerModule)
 
 
 local remoteEvent:RemoteEvent = BitWorkerModule:WaitForChild("RecurseNetworker")

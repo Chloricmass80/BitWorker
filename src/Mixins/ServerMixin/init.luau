@@ -46,6 +46,8 @@ function ServerMixin.Apply(BitWorker)
     BitWorker._seqCursorCounts = {} -- Keeps track of how many player seqCursors lie on a given seqNum. Formatted as {115 = 2, 223 = 1, ...}
     BitWorker._pendingTargetsByPlayer = {} -- Keeps track of which player has which seqNums as targets. Formatted as: {plyr = {115 = true, 223 = true ...} ...}
     BitWorker._currentTLV = {tlv = TLV.new(BitWorker._chunkSize), target = nil}
+    BitWorker._clientConnectedCallback = {}
+
 
     TLV.SetMaxReadSize(Settings.MaximumClientTransmissionUnit)
 
@@ -202,29 +204,6 @@ function ServerMixin.Apply(BitWorker)
         self:_FireCommon(tag, value, plyrs, true)
     end
 
-    function BitWorker:MarkInstanceDirty(instance:{any}|number, tag:string, value:any?)
-        if tag == nil then return end -- Edge cases may cause the passed tag to be nil
-        local id = nil
-        if type(instance) == "number" then
-            id = instance
-        else
-            id = instance._networkId
-        end
-
-        if not id then
-            warn("BitWorker could not find a network Id associated with object:", instance)
-        end
-
-        if value == nil then
-            value = {}
-        elseif type(value) ~= "table" then
-            value = {value}
-        end
-
-        table.insert(value, 1, id)
-        self:FireAllClients(tag, value)
-    end
-
     function BitWorker:_GetNewSeqNum() : number
         self._lastGeneratedSeqNum += 1
         if self._largestSeqNum ~= nil then
@@ -236,6 +215,10 @@ function ServerMixin.Apply(BitWorker)
         return self._lastGeneratedSeqNum
     end
 
+    
+    function BitWorker.AddOnClientConnectedCallback(callbackFunc: (player: Player) -> (...any?))
+        table.insert(BitWorker._clientConnectedCallback, callbackFunc)
+    end
 
     function BitWorker:_OnClientJoined(plyr:Player)
         if self._registeredPlayers[plyr] == true then
@@ -245,7 +228,10 @@ function ServerMixin.Apply(BitWorker)
 
         self._registeredPlayers[plyr] = true
         self:_UpdateCursorsOnPlyrJoin(plyr)
-        local snapShotTLV = TLV.new(self._chunkSize) -- add on client join func support
+
+        for _, func in ipairs(self._clientConnectedCallback) do
+            func(plyr)
+        end
     end
 
     function BitWorker:_OnClientDestroyed(plyr)

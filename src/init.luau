@@ -6,13 +6,14 @@ type AgnosticBitWorker = {
     AddTag : (tagName : string, tagConfig: {string | {string}}) -> ();
     AddHandler : (tagName: string, handler: ({any}) -> ()) -> ();
 }
-type ServerBitWorker = {
-    FireAllClients : (tag: string, value: any) -> ();
-    FireClient : (tag: string, value: any) -> ();
-    FireMultipleClients : (plyrs: {Player}, tag: string, value: any) -> ()
+export type ServerBitWorker = {
+    AddOnClientConnectedCallback : (callbackFunc: (player: Player) -> (...any?)) -> ();
+    FireAllClients : (self: ServerBitWorker, tag: string, value: any) -> ();
+    FireClient : (self: ServerBitWorker, tag: string, value: any) -> ();
+    FireMultipleClients : (self: ServerBitWorker, plyrs: {Player}, tag: string, value: any) -> ()
 } & AgnosticBitWorker
-type ClientBitWorker = {
-    FireServer : (tag: string, value: any) -> ();
+export type ClientBitWorker = {
+    FireServer : (self: ClientBitWorker, tag: string, value: any) -> ();
 } & AgnosticBitWorker
 
 
@@ -68,8 +69,8 @@ end)
 
 if RunService:IsServer() then
     require(script.Mixins.ServerMixin).Apply(BitWorker)
-    return BitWorker :: ServerBitWorker
 else
     require(script.Mixins.ClientMixin).Apply(BitWorker)
-    return BitWorker :: ClientBitWorker
 end
+
+return (BitWorker :: any) :: AgnosticBitWorker
