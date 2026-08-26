@@ -19,6 +19,29 @@ function UtilityFuncs.InsertString(str1:string, str2:string, i:number?) : string
 	return table.concat({clippedStr2, clippedStr1}, str2)
 end
 
+-- Returns if arr1 has the same values as arr2. Indexes are allowed to be out of order, but no extra values must be present in one or the other. Essentially a loose deep equal.
+function UtilityFuncs.MultisetEqual(arr1: {any}, arr2: {any}): boolean
+    if #arr1 ~= #arr2 then return false end -- cheap early-out
+
+    local counts = {}
+
+    for i = 1, #arr1 do
+        local v = arr1[i]
+        counts[v] = (counts[v] or 0) + 1
+    end
+
+    for i = 1, #arr2 do
+        local v = arr2[i]
+        local c = counts[v]
+        if c == nil or c == 0 then
+            return false -- value in arr2 not present (enough times) in arr1
+        end
+        counts[v] = c - 1
+    end
+
+    return true
+end
+
 function UtilityFuncs.BetterToStr(val)
     local valType = typeof(val)
         if valType == "table" then

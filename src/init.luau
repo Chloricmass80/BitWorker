@@ -7,9 +7,10 @@ type AgnosticBitWorker = {
     AddHandler : (tagName: string, handler: ({any}) -> ()) -> ();
 }
 export type ServerBitWorker = {
-    AddOnClientConnectedCallback : (callbackFunc: (player: Player) -> (...any?)) -> ();
+    GetConnectedClients : (self: ServerBitWorker) -> ({Player});
+    AddOnClientConnectedCallback : (self: ServerBitWorker, callbackFunc: (player: Player) -> (...any?)) -> ();
     FireAllClients : (self: ServerBitWorker, tag: string, value: any) -> ();
-    FireClient : (self: ServerBitWorker, tag: string, value: any) -> ();
+    FireClient : (self: ServerBitWorker, plyr: Player, tag: string, value: any) -> ();
     FireMultipleClients : (self: ServerBitWorker, plyrs: {Player}, tag: string, value: any) -> ()
 } & AgnosticBitWorker
 export type ClientBitWorker = {

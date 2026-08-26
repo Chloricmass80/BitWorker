@@ -37,6 +37,7 @@ local ServerMixin = {}
 
 function ServerMixin.Apply(BitWorker)
     BitWorker._registeredPlayers = {}
+    BitWorker._playerArray = {} -- array of connected players (in order of when they connected)
     BitWorker._inboundTokens = {}
     BitWorker._chunkSize = Settings.MaximumServerTransmissionUnit
     BitWorker._playerSeqCursors = {}
@@ -172,7 +173,7 @@ function ServerMixin.Apply(BitWorker)
         end
     end
 
-    function BitWorker:_FireCommon(tag: string, value: any, plyrs:{Player} | Player?, isTargetATable:boolean?)
+    function BitWorker:_FireCommon(tag: string, value: any?, plyrs:{Player} | Player?, isTargetATable:boolean?)
         print("Outgoing packet:", tag)
         if #Players:GetPlayers() == 0 then return end -- Don't have to do nothing if the game is dead!
         if type(value) ~= "table" then value = {value} end
@@ -180,27 +181,64 @@ function ServerMixin.Apply(BitWorker)
         local commonWithLastRequest = false
 
         if isTargetATable then
-            commonWithLastRequest = Utils.MultisetEqual(plyrs, self._currentTLV.target)
+            commonWithLastRequest = type(self._currentTLV.target) == "table" and Utils.MultisetEqual(plyrs, self._currentTLV.target)
         else
             commonWithLastRequest = plyrs == self._currentTLV.target
         end
 
-        if commonWithLastRequest then
-            self._currentTLV.tlv:AddData(tag, value)
-        else
+        if not commonWithLastRequest then
             self:_WithdrawAndCacheCurrentTLV(isTargetATable)
+            self._currentTLV.target = plyrs
         end
+        self._currentTLV.tlv:AddData(tag, value)
     end
 
-    function BitWorker:FireAllClients(tag: string, value: any)
+    function BitWorker:FireAllClients(tag: string, value: any?)
+        -- fail fast stuff:
+        local tagType = type(tag)
+        if tagType ~= "string" then
+            error(string.format("Method FireAllClients() expects arguments (tag: string, value: any?), got (tag: %s, value: any?).", tagType), 2)
+        end
+
         self:_FireCommon(tag, value)
     end
 
     function BitWorker:FireClient(plyr: Player, tag: string, value: any)
+        -- fail fast stuff:
+        local tagType = type(tag)
+        if tagType ~= "string" then
+            error(string.format("Method FireClient() expects arguments (plyr: Player, tag: string, value: any?), got (tag: %s, value: any?).", tagType), 2)
+        end
+
+        local plyrType = typeof(plyr)
+        if plyrType ~= "Instance" or not plyr:IsA("Player") then
+            error(string.format("Method FireClient() expects arguments (plyr: Player, tag: string, value: any?), got (plyr: %s, tag: string, value: any?).", plyrType), 2)
+        end
+
         self:_FireCommon(tag, value, plyr)
     end
 
     function BitWorker:FireMultipleClients(plyrs: {Player}, tag: string, value: any)
+        -- fail fast stuff:
+        local tagType = type(tag)
+        if tagType ~= "string" then
+            error(string.format("Method FireMultipleClients() expects arguments (plyr: Player, tag: string, value: any?), got (tag: %s, value: any?).", tagType), 2)
+        end
+
+        local plyrTableType = type(plyrs)
+        if plyrTableType ~= "table" then
+            error(string.format("Method FireMultipleClients() expects arguments (plyrs: {Player}, tag: string, value: any?), got (plyrs: %s, tag: string, value: any?).", plyrTableType), 2)
+        end
+
+        for i=1, #plyrs do
+            local plyr = plyrs[i]
+            local plyrType = typeof(plyr)
+            if plyrType ~= "Instance" or not plyr:IsA("Player") then
+                error(string.format("Method FireMultipleClients() expects arguments (plyrs: {Player}, tag: string, value: any?), got (plyrs: {any}, tag: string, value: any?)."..
+                "\n offending plyrs array index: %s. Offending type: %s. Offending value: %s", plyrTableType, tostring(i), plyrType, Utils.BetterToStr(plyr)), 2)
+            end
+        end
+
         self:_FireCommon(tag, value, plyrs, true)
     end
 
@@ -216,17 +254,22 @@ function ServerMixin.Apply(BitWorker)
     end
 
     
-    function BitWorker.AddOnClientConnectedCallback(callbackFunc: (player: Player) -> (...any?))
-        table.insert(BitWorker._clientConnectedCallback, callbackFunc)
+    function BitWorker:AddOnClientConnectedCallback(callbackFunc: (player: Player) -> (...any?))
+        table.insert(self._clientConnectedCallback, callbackFunc)
+    end
+
+    function BitWorker:GetConnectedClients() : ({Players})
+        return table.clone(self._playerArray)
     end
 
     function BitWorker:_OnClientJoined(plyr:Player)
-        if self._registeredPlayers[plyr] == true then
+        if self._registeredPlayers[plyr] ~= nil then
             Discipline:AddHeat(plyr, InfractionTypes.RestrictedPacket)
             return
         end
 
-        self._registeredPlayers[plyr] = true
+        table.insert(self._playerArray, plyr)
+        self._registeredPlayers[plyr] = #self._playerArray -- set to index of player array to double as a lookup
         self:_UpdateCursorsOnPlyrJoin(plyr)
 
         for _, func in ipairs(self._clientConnectedCallback) do
@@ -235,6 +278,14 @@ function ServerMixin.Apply(BitWorker)
     end
 
     function BitWorker:_OnClientDestroyed(plyr)
+        local plyrIndex = self._registeredPlayers[plyr]
+        self._registeredPlayers[plyr] = nil
+        table.remove(self._playerArray, plyrIndex)
+        for i=plyrIndex, #self._playerArray do -- update registered players to keep up to date with the playerArray
+            local plyr = self._playerArray[i]
+            self._registeredPlayers[plyr] = i
+        end
+
         self:_UpdateCursorsOnPlyrLeave(plyr)
     end
 

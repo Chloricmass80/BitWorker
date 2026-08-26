@@ -9,7 +9,7 @@ type Packet = {
     data : {any}
 }
 type TLVObj = {
-    AddData : (TLVObj, tagName : string, value : {any}, request : {any}?) -> ();
+    AddData : (TLVObj, tagName : string, value : {any}?, request : {any}?) -> ();
     GetCurrentPayloadSize : (TLVObj) -> (number);
     WithdrawData : (TLVObj) -> ({PacketData});
     SerializeOnce : TLVSerializeOnceFunc;

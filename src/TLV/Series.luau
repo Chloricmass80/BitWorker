@@ -807,7 +807,7 @@ function Series:Serialize() : buffer
 end
 
 
-function Series.SerializeOnce(tag: string, value: any, request: any?) : (buffer?, {Instance}?, number)
+function Series.SerializeOnce(tag: string, value: any, request: any?) : (buffer?, {Instance}?, number?)
     request = request or Series._ProcessRequestData(tag, value)
     if not request then return end
     local size 
